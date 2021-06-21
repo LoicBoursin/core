@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the API Platform project.
+ *
+ * (c) Kévin Dunglas <dunglas@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 declare(strict_types=1);
 
 namespace ApiPlatform\Core\Bridge\Symfony\Bundle\Command;
@@ -29,8 +38,7 @@ class RectorCommand extends Command
         $this
             ->setDescription('Change ApiResource annotation/attribute to ApiResource/Resource attribute')
             ->addOption('dry-run', '-d', InputOption::VALUE_NONE, 'Rector will show you diff of files that it would change. To make the changes, drop --dry-run')
-            ->addArgument('src', InputArgument::REQUIRED, '')
-        ;
+            ->addArgument('src', InputArgument::REQUIRED, '');
     }
 
     /**
@@ -59,16 +67,16 @@ class RectorCommand extends Command
         }
 
         switch ($choice) {
-            case self::ANNOTATION_TO_ATTRIBUTE_V2;
+            case self::ANNOTATION_TO_ATTRIBUTE_V2:
                 $command .= ' --config='.ApiPlatformSetList::ANNOTATION_TO_API_RESOURCE_ATTRIBUTE;
                 break;
-            case self::ANNOTATION_TO_ATTRIBUTE_V3;
+            case self::ANNOTATION_TO_ATTRIBUTE_V3:
                 $command .= ' --config='.ApiPlatformSetList::ANNOTATION_TO_RESOURCE_ATTRIBUTE;
                 break;
-            case self::ANNOTATION_TO_ATTRIBUTE_V2_AND_V3;
+            case self::ANNOTATION_TO_ATTRIBUTE_V2_AND_V3:
                 $command .= ' --config='.ApiPlatformSetList::ANNOTATION_TO_API_RESOURCE_AND_RESOURCE_ATTRIBUTE;
                 break;
-            case self::ATTRIBUTE_V2_TO_V3;
+            case self::ATTRIBUTE_V2_TO_V3:
                 $command .= ' --config='.ApiPlatformSetList::ATTRIBUTE_TO_RESOURCE_ATTRIBUTE;
                 break;
         }

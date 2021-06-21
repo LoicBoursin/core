@@ -127,6 +127,7 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         $this->registerElasticsearchConfiguration($container, $config, $loader);
         $this->registerDataTransformerConfiguration($container);
         $this->registerSecurityConfiguration($container, $loader);
+        $this->registerRectorConfiguration($container, $loader);
 
         $container->registerForAutoconfiguration(DataPersisterInterface::class)
             ->addTag('api_platform.data_persister');
@@ -718,6 +719,11 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         if (isset($bundles['SecurityBundle'])) {
             $loader->load('security.xml');
         }
+    }
+
+    private function registerRectorConfiguration(ContainerBuilder $container, XmlFileLoader $loader): void
+    {
+        $loader->load('rector.xml');
     }
 
     private function registerOpenApiConfiguration(ContainerBuilder $container, array $config): void
