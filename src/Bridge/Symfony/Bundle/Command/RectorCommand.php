@@ -47,14 +47,22 @@ class RectorCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $choice = $io->choice('Choose operation to perform', [
-            1 => self::ANNOTATION_TO_ATTRIBUTE_V2,
-            self::ANNOTATION_TO_ATTRIBUTE_V3,
-            self::ANNOTATION_TO_ATTRIBUTE_V2_AND_V3,
-            self::ATTRIBUTE_V2_TO_V3,
-        ]);
 
-        $command = 'vendor/bin/rector process '.$input->getArgument('src');
+        $choices = [
+            1 => self::ANNOTATION_TO_ATTRIBUTE_V2,
+        ];
+
+        if (class_exists(Resource::class)) {
+            $choices[] = [
+                self::ANNOTATION_TO_ATTRIBUTE_V3,
+                self::ANNOTATION_TO_ATTRIBUTE_V2_AND_V3,
+                self::ATTRIBUTE_V2_TO_V3,
+            ];
+        }
+
+        $choice = $io->choice('Choose operation to perform', $choices);
+
+        $command = 'vendor/bin/rector process --debug '.$input->getArgument('src');
 
         if ($input->getOption('dry-run')) {
             $command .= ' --dry-run';

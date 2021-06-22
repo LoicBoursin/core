@@ -13,42 +13,45 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Bridge\Rector\Rules;
 
-use ApiPlatform\Core\Annotation\ApiResource;
 use PhpParser\Node;
+use PhpParser\Node\Expr\ArrowFunction;
+use PhpParser\Node\Expr\Closure;
 use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\Property;
+use PHPStan\PhpDocParser\Ast\ConstExpr\ConstExprNode;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTagNode;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTagValueNode;
 use Rector\BetterPhpDocParser\PhpDoc\DoctrineAnnotationTagValueNode;
 use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfo;
 use Rector\BetterPhpDocParser\PhpDocManipulator\PhpDocTagRemover;
+use Rector\BetterPhpDocParser\ValueObject\PhpDoc\DoctrineAnnotation\CurlyListNode;
 use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
+use Rector\Core\Rector\AbstractRector;
 use Rector\Core\ValueObject\PhpVersionFeature;
 use Rector\Php80\ValueObject\AnnotationToAttribute;
 use Rector\PhpAttribute\Printer\PhpAttributeGroupFactory;
+use RectorPrefix20210613\Webmozart\Assert\Assert;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
-use Webmozart\Assert\Assert;
 
-final class ApiResourceAnnotationToResourceAttributeRector extends AbstractApiResourceToResourceAttribute implements ConfigurableRectorInterface
+final class AnnotationToAttributeRector extends AbstractRector implements ConfigurableRectorInterface
 {
     /**
      * @var string
      */
-    public const ANNOTATION_TO_ATTRIBUTE = 'api_resource_annotation_to_resource_attribute';
-    /**
-     * @var string
-     */
-    public const REMOVE_TAG = 'remove_tag';
+    public const ANNOTATION_TO_ATTRIBUTE = 'annotation_to_attribute';
     /**
      * @var AnnotationToAttribute[]
      */
     private $annotationsToAttributes = [];
     /**
-     * @var bool
+     * @var \Rector\PhpAttribute\Printer\PhpAttributeGroupFactory
      */
-    private $removeTag;
+    private $phpAttributeGroupFactory;
     /**
-     * @var PhpDocTagRemover
+     * @var \Rector\BetterPhpDocParser\PhpDocManipulator\PhpDocTagRemover
      */
     private $phpDocTagRemover;
 
@@ -61,31 +64,30 @@ final class ApiResourceAnnotationToResourceAttributeRector extends AbstractApiRe
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition('Change annotation to attribute', [new ConfiguredCodeSample(<<<'CODE_SAMPLE'
-use ApiPlatform\Core\Annotation\ApiResource;
+use Symfony\Component\Routing\Annotation\Route;
 
-/**
- * @ApiResource(collectionOperations={}, itemOperations={
- *     "get",
- *     "get_by_isbn"={"method"="GET", "path"="/books/by_isbn/{isbn}.{_format}", "requirements"={"isbn"=".+"}, "identifiers"="isbn"}
- * })
- */
-class Book
+class SymfonyRoute
+{
+    /**
+     * @Route("/path", name="action")
+     */
+    public function action()
+    {
+    }
+}
 CODE_SAMPLE
             , <<<'CODE_SAMPLE'
-use ApiPlatform\Metadata\Resource;
-use ApiPlatform\Metadata\Get;
-use ApiPlatform\Core\Annotation\ApiResource;
+use Symfony\Component\Routing\Annotation\Route;
 
-#[Resource]
-#[Get]
-#[Get(operationName: 'get_by_isbn', path: '/books/by_isbn/{isbn}.{_format}', requirements: ['isbn' => '.+'], identifiers: 'isbn')]
-class Book
+class SymfonyRoute
+{
+    #[Route(path: '/path', name: 'action')]
+    public function action()
+    {
+    }
+}
 CODE_SAMPLE
-            , [
-                self::ANNOTATION_TO_ATTRIBUTE => [new AnnotationToAttribute(ApiResource::class, ApiResource::class)],
-                self::REMOVE_TAG => true,
-            ]),
-        ]);
+            , [self::ANNOTATION_TO_ATTRIBUTE => [new \Rector\Php80\ValueObject\AnnotationToAttribute('Symfony\\Component\\Routing\\Annotation\\Route')]])]);
     }
 
     /**
@@ -93,11 +95,11 @@ CODE_SAMPLE
      */
     public function getNodeTypes(): array
     {
-        return [Class_::class];
+        return [Class_::class, Property::class, ClassMethod::class, Function_::class, Closure::class, ArrowFunction::class];
     }
 
     /**
-     * @param Class_ $node
+     * @param Class_|Property|ClassMethod|Function_|Closure|ArrowFunction $node
      */
     public function refactor(Node $node): ?Node
     {
@@ -105,11 +107,14 @@ CODE_SAMPLE
             return null;
         }
         $phpDocInfo = $this->phpDocInfoFactory->createFromNode($node);
+
         if (!$phpDocInfo instanceof PhpDocInfo) {
             return null;
         }
+
         $tags = $phpDocInfo->getAllTags();
         $hasNewAttrGroups = $this->processApplyAttrGroups($tags, $phpDocInfo, $node);
+
         if ($hasNewAttrGroups) {
             return $node;
         }
@@ -125,12 +130,11 @@ CODE_SAMPLE
         $annotationsToAttributes = $configuration[self::ANNOTATION_TO_ATTRIBUTE] ?? [];
         Assert::allIsInstanceOf($annotationsToAttributes, AnnotationToAttribute::class);
         $this->annotationsToAttributes = $annotationsToAttributes;
-        $this->removeTag = $configuration[self::REMOVE_TAG] ?? true;
     }
 
     /**
-     * @param array<PhpDocTagNode> $tags
-     * @param Class_               $node
+     * @param array<PhpDocTagNode>                                        $tags
+     * @param Class_|Property|ClassMethod|Function_|Closure|ArrowFunction $node
      */
     private function processApplyAttrGroups(array $tags, PhpDocInfo $phpDocInfo, Node $node): bool
     {
@@ -139,10 +143,8 @@ CODE_SAMPLE
             foreach ($this->annotationsToAttributes as $annotationToAttribute) {
                 $annotationToAttributeTag = $annotationToAttribute->getTag();
                 if ($phpDocInfo->hasByName($annotationToAttributeTag)) {
-                    if (true === $this->removeTag) {
-                        // 1. remove php-doc tag
-                        $this->phpDocTagRemover->removeByName($phpDocInfo, $annotationToAttributeTag);
-                    }
+                    // 1. remove php-doc tag
+                    $this->phpDocTagRemover->removeByName($phpDocInfo, $annotationToAttributeTag);
                     // 2. add attributes
                     $node->attrGroups[] = $this->phpAttributeGroupFactory->createFromSimpleTag($annotationToAttribute);
                     $hasNewAttrGroups = true;
@@ -151,17 +153,13 @@ CODE_SAMPLE
                 if ($this->shouldSkip($tag->value, $phpDocInfo, $annotationToAttributeTag)) {
                     continue;
                 }
-
-                if (true === $this->removeTag) {
-                    // 1. remove php-doc tag
-                    $this->phpDocTagRemover->removeTagValueFromNode($phpDocInfo, $tag->value);
-                }
+                // 1. remove php-doc tag
+                $this->phpDocTagRemover->removeTagValueFromNode($phpDocInfo, $tag->value);
                 // 2. add attributes
                 /** @var DoctrineAnnotationTagValueNode $tagValue */
-                $tagValue = clone $tag->value;
-                $this->resolveOperations($tagValue, $node);
-                $resourceAttributeGroup = $this->phpAttributeGroupFactory->create($tagValue, $annotationToAttribute);
-                array_unshift($node->attrGroups, $resourceAttributeGroup);
+                $tagValue = $tag->value;
+                $this->sanitizeTags($tagValue);
+                $node->attrGroups[] = $this->phpAttributeGroupFactory->create($tagValue, $annotationToAttribute);
                 $hasNewAttrGroups = true;
                 continue 2;
             }
@@ -180,22 +178,40 @@ CODE_SAMPLE
         return !$phpDocTagValueNode instanceof DoctrineAnnotationTagValueNode;
     }
 
-    /**
-     * @param Class_ $node
-     */
-    private function resolveOperations(DoctrineAnnotationTagValueNode $tagValue, Node $node): void
+    private function sanitizeTags(DoctrineAnnotationTagValueNode $tagValue): void
     {
         $values = $tagValue->getValues();
 
-        foreach ($this->operationTypes as $type) {
-            if (isset($values[$type])) {
-                $operations = $this->normalizeOperations($values[$type]->getValuesWithExplicitSilentAndWithoutQuotes());
-                foreach ($operations as $name => $arguments) {
-                    $node->attrGroups[] = $this->createOperationAttributeGroup($type, $name, $arguments);
-                }
-                // Remove collectionOperations|itemOperations from Tag values
-                $tagValue->removeValue($type);
+        foreach ($values as $annotationKey => $annotationValue) {
+            if (')' === $annotationValue) { // Fixes error when there is a trailing comma
+                $tagValue->removeValue((string) $annotationKey);
+                continue;
             }
+
+            //dump(get_debug_type($annotationValue));
+            if (!($annotationValue instanceof CurlyListNode)) {
+                continue;
+            }
+            $annotationValues = $annotationValue->getValues();
+            foreach ($annotationValues as $key => $value) {
+                if (\is_array($value)) {
+                    foreach ($value as $annotationSubKey => $annotationSubValue) {
+                        if (\is_string($annotationSubValue)) {
+                            $annotationSubValue = str_replace('\'', '"', $annotationSubValue);
+                            $value[$annotationSubKey] = $annotationSubValue;
+                            $annotationValues[$key] = $value;
+                        }
+                    }
+                } else {
+                    if (!($value instanceof ConstExprNode)) {
+                        $value = str_replace('\'', '"', $value);
+                        $annotationValues[$key] = $value;
+                    }
+                }
+            }
+
+            $tagValue->removeValue((string) $annotationKey); // Must remove key because array values are not allowed if the key already exists
+            $tagValue->changeValue((string) $annotationKey, $annotationValues);
         }
     }
 }

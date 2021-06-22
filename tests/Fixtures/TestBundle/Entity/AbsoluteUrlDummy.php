@@ -18,8 +18,8 @@ use ApiPlatform\Core\Api\UrlGeneratorInterface;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * @ApiResource(urlGenerationStrategy=UrlGeneratorInterface::ABS_URL)
  * @ORM\Entity
+ * @ApiResource(urlGenerationStrategy=UrlGeneratorInterface::ABS_URL)
  */
 class AbsoluteUrlDummy
 {
@@ -29,7 +29,6 @@ class AbsoluteUrlDummy
      * @ORM\Column(type="integer")
      */
     private $id;
-
     /**
      * @ORM\ManyToOne(targetEntity="AbsoluteUrlRelationDummy", inversedBy="absoluteUrlDummies")
      */

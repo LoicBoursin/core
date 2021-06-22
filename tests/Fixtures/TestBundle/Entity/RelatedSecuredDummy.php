@@ -13,55 +13,43 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity;
 
-use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Jsonld Context Dummy.
- *
- * @ApiResource
+ * @ApiResource(
+ *     attributes={"security"="is_granted('ROLE_ADMIN')"},
+ *     collectionOperations={
+ *         "get"={"security"="is_granted('ROLE_ADMIN')"},
+ *     },
+ *     itemOperations={
+ *         "get"={"security"="is_granted('ROLE_ADMIN')"},
+ *     },
+ *     graphql={
+ *         "item_query"={"security"="is_granted('ROLE_ADMIN')"},
+ *         "collection_query"={"security"="is_granted('ROLE_ADMIN')"},
+ *     }
+ * )
  * @ORM\Entity
  */
-class JsonldContextDummy
+class RelatedSecuredDummy
 {
     /**
-     * @var int The id
+     * @var int
      *
-     * @ApiProperty(identifier=true)
      * @ORM\Column(type="integer")
      * @ORM\Id
      * @ORM\GeneratedValue(strategy="AUTO")
      */
     private $id;
 
-    /**
-     * @var string The dummy person
-     *
-     * @ApiProperty(
-     *     attributes={
-     *         "jsonld_context"={
-     *             "@id"="http://example.com/id",
-     *             "@var"="@id",
-     *             "foo"="bar"
-     *         }
-     *     },
-     * )
-     */
-    private $person;
-
     public function getId()
     {
         return $this->id;
     }
 
-    public function setPerson($person)
+    public function setId($id)
     {
-        $this->person = $person;
-    }
-
-    public function getPerson()
-    {
-        return $this->person;
+        $this->id = $id;
     }
 }
