@@ -1,6 +1,6 @@
 {
-    "name": "api-platform/core",
-    "description": "Build a fully-featured hypermedia or GraphQL API in minutes!",
+    "name": "loicboursin/core",
+    "description": "STABLE - Temporary with fix for securityPostDenormalize - Build a fully-featured hypermedia or GraphQL API in minutes!",
     "type": "library",
     "keywords": ["REST", "GraphQL", "API", "JSON-LD", "Hydra", "JSONAPI", "OpenAPI", "HAL", "Swagger"],
     "homepage": "https://api-platform.com",
